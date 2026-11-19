@@ -1,0 +1,44 @@
+name: Deploy VectorCraft
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Download VectorCraft release
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            https://github.com/storytold/vectorcraft/releases/download/v0.24.1/vectorcraft-web-0.24.1.zip \
+            --output vectorcraft-web-0.24.1.zip
+          unzip -q vectorcraft-web-0.24.1.zip -d site
+          test -f site/vectorcraft-web-0.24.1/index.html
+          test -f site/vectorcraft-web-0.24.1/vectorcraft-web-80ef79e0b9e423a1_bg.wasm
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/vectorcraft-web-0.24.1
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
