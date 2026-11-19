@@ -35,6 +35,39 @@ jobs:
           unzip -q vectorcraft-web-0.24.1.zip -d site
           test -f site/vectorcraft-web-0.24.1/index.html
           test -f site/vectorcraft-web-0.24.1/vectorcraft-web-80ef79e0b9e423a1_bg.wasm
+          python3 - <<'PY'
+          from pathlib import Path
+
+          index = Path("site/vectorcraft-web-0.24.1/index.html")
+          html = index.read_text()
+          marker = '<script type="module">'
+          diagnostic = """<script>
+          let vectorcraftStarted = false;
+          window.addEventListener("TrunkApplicationStarted", () => {
+            vectorcraftStarted = true;
+          });
+          function showVectorcraftLoadError(reason) {
+            if (vectorcraftStarted) return;
+            const loading = document.getElementById("vectorcraft_loading");
+            if (!loading) return;
+            const detail = reason instanceof Error ? reason.message : String(reason);
+            loading.textContent = `VectorCraft couldn't start: ${detail}`;
+            loading.style.pointerEvents = "auto";
+          }
+          window.addEventListener("unhandledrejection", event => showVectorcraftLoadError(event.reason));
+          window.addEventListener("error", event => {
+            if (event.target instanceof HTMLScriptElement) {
+              showVectorcraftLoadError(event.message || "A script failed to load.");
+            } else if (event.message) {
+              showVectorcraftLoadError(event.error || event.message);
+            }
+          }, true);
+          </script>
+          """
+          if marker not in html:
+              raise SystemExit("Could not find the app module script in index.html")
+          index.write_text(html.replace(marker, diagnostic + marker, 1))
+          PY
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
